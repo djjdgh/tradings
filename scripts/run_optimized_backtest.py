@@ -197,24 +197,24 @@ async def param_sweep_bollinger(bars, symbol, config):
                     r = await engine.run(strategy, bars, rm)
 
                     marker = ""
-                    if r["sharpe_ratio"] > best_sharpe:
-                        best_sharpe = r["sharpe_ratio"]
+                    if r.sharpe_ratio > best_sharpe:
+                        best_sharpe = r.sharpe_ratio
                         best_params = {"std": std_dev, "vol_t": vol_threshold,
                                        "ma": trend_ma, "sl_atr": sl_atr, "result": r}
                         marker = " ★"
 
-                    if r["total_trades"] > 5:
+                    if r.total_trades > 5:
                         print(f"  {std_dev:>5.1f} {vol_threshold:>6.1f} {trend_ma:>5d} {sl_atr:>7.1f} | "
-                              f"{r['total_return']:>+6.1%} {r['max_drawdown']:>5.1%} "
-                              f"{r['sharpe_ratio']:>7.2f} {r['total_trades']:>7d} "
-                              f"{r['win_rate']:>5.1%}{marker}")
+                              f"{r.total_return:>+6.1%} {r.max_drawdown:>5.1%} "
+                              f"{r.sharpe_ratio:>7.2f} {r.total_trades:>7d} "
+                              f"{r.win_rate:>5.1%}{marker}")
 
     if best_params:
         r = best_params["result"]
         print(f"\n  ★ 最优参数: std={best_params['std']}, vol_t={best_params['vol_t']}, "
               f"ma={best_params['ma']}, sl_atr={best_params['sl_atr']}")
-        print(f"    收益={r['total_return']:+.1%}, 回撤={r['max_drawdown']:.1%}, "
-              f"夏普={r['sharpe_ratio']:.2f}, 交易={r['total_trades']}")
+        print(f"    收益={r.total_return:+.1%}, 回撤={r.max_drawdown:.1%}, "
+              f"夏普={r.sharpe_ratio:.2f}, 交易={r.total_trades}")
 
     return best_params
 
@@ -291,12 +291,12 @@ async def main():
         r = await engine.run(strategy, bars, rm)
         tsmom_results.append(r)
 
-        print(f"  {sym:<20} return={r['total_return']:+7.1%}  dd={r['max_drawdown']:6.1%}  "
-              f"sharpe={r['sharpe_ratio']:6.2f}  trades={r['total_trades']:3d}")
+        print(f"  {sym:<20} return={r.total_return:+7.1%}  dd={r.max_drawdown:6.1%}  "
+              f"sharpe={r.sharpe_ratio:6.2f}  trades={r.total_trades:3d}")
 
     if tsmom_results:
-        avg_r = np.mean([r["total_return"] for r in tsmom_results])
-        avg_s = np.mean([r["sharpe_ratio"] for r in tsmom_results])
+        avg_r = np.mean([r.total_return for r in tsmom_results])
+        avg_s = np.mean([r.sharpe_ratio for r in tsmom_results])
         print(f"  {'AVERAGE':<20} return={avg_r:+7.1%}  sharpe={avg_s:6.2f}")
 
     # ═══════════════════════════════════════════
@@ -327,12 +327,12 @@ async def main():
         r = await engine.run(strategy, bars, rm)
         bb_results.append(r)
 
-        print(f"  {sym:<20} return={r['total_return']:+7.1%}  dd={r['max_drawdown']:6.1%}  "
-              f"sharpe={r['sharpe_ratio']:6.2f}  trades={r['total_trades']:3d}")
+        print(f"  {sym:<20} return={r.total_return:+7.1%}  dd={r.max_drawdown:6.1%}  "
+              f"sharpe={r.sharpe_ratio:6.2f}  trades={r.total_trades:3d}")
 
     if bb_results:
-        avg_r = np.mean([r["total_return"] for r in bb_results])
-        avg_s = np.mean([r["sharpe_ratio"] for r in bb_results])
+        avg_r = np.mean([r.total_return for r in bb_results])
+        avg_s = np.mean([r.sharpe_ratio for r in bb_results])
         print(f"  {'AVERAGE':<20} return={avg_r:+7.1%}  sharpe={avg_s:6.2f}")
 
     # ═══════════════════════════════════════════
@@ -371,12 +371,12 @@ async def main():
         r = await engine.run(strategy, bars, rm)
         fr_results.append(r)
 
-        print(f"  {sym:<20} return={r['total_return']:+7.1%}  dd={r['max_drawdown']:6.1%}  "
-              f"sharpe={r['sharpe_ratio']:6.2f}  trades={r['total_trades']:3d}")
+        print(f"  {sym:<20} return={r.total_return:+7.1%}  dd={r.max_drawdown:6.1%}  "
+              f"sharpe={r.sharpe_ratio:6.2f}  trades={r.total_trades:3d}")
 
     if fr_results:
-        avg_r = np.mean([r["total_return"] for r in fr_results])
-        avg_s = np.mean([r["sharpe_ratio"] for r in fr_results])
+        avg_r = np.mean([r.total_return for r in fr_results])
+        avg_s = np.mean([r.sharpe_ratio for r in fr_results])
         print(f"  {'AVERAGE':<20} return={avg_r:+7.1%}  sharpe={avg_s:6.2f}")
 
     # ═══════════════════════════════════════════
@@ -398,15 +398,15 @@ async def main():
     for name, results in all_results.items():
         if not results:
             continue
-        avg_r = np.mean([r["total_return"] for r in results])
-        avg_d = np.mean([r["max_drawdown"] for r in results])
-        avg_s = np.mean([r["sharpe_ratio"] for r in results])
-        total_t = sum(r["total_trades"] for r in results)
+        avg_r = np.mean([r.total_return for r in results])
+        avg_d = np.mean([r.max_drawdown for r in results])
+        avg_s = np.mean([r.sharpe_ratio for r in results])
+        total_t = sum(r.total_trades for r in results)
 
         for r in results:
-            total_i += r["initial_capital"]
-            total_f += r["final_equity"]
-            worst_dd = max(worst_dd, r["max_drawdown"])
+            total_i += r.initial_capital
+            total_f += r.final_equity
+            worst_dd = max(worst_dd, r.max_drawdown)
 
         print(f"  {name:<30} avg_ret={avg_r:+6.2%}  avg_dd={avg_d:5.1%}  "
               f"avg_sharpe={avg_s:6.2f}  trades={total_t}")
