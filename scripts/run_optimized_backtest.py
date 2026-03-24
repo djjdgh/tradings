@@ -1,5 +1,5 @@
 """
-优化版回测 — Regime 检测 + 参数优化 + 资金费率策略
+优化版回测 — Regime 检测 + 均值回归 + 资金费率策略
 
 用法:
     PYTHONPATH=. python scripts/run_optimized_backtest.py
@@ -23,6 +23,7 @@ from src.backtest.report import generate_report
 from src.core.event import Bar, Signal, SignalAction
 from src.risk.manager import RiskManager
 from src.strategy.base import BaseStrategy
+from src.strategy.bollinger_mean_reversion import BollingerMeanReversionStrategy
 from src.strategy.bollinger_trend import BollingerTrendStrategy
 from src.strategy.regime import MarketRegime, RegimeDetector
 from src.strategy.tsmom import TSMOMStrategy
@@ -163,58 +164,57 @@ class FundingRateBacktestStrategy(BaseStrategy):
         return float(np.mean(tr_list[-period:])) if len(tr_list) >= period else 0
 
 
-# ─── Parameter sweep ───
-async def param_sweep_bollinger(bars, symbol, config):
-    """布林带参数扫描"""
+# ─── Mean Reversion Parameter Sweep ───
+async def param_sweep_mean_reversion(bars, symbol, config):
+    """均值回归参数扫描（小规模，~12 组合）"""
     print(f"\n  {'─'*60}")
-    print(f"  布林带参数扫描 — {symbol}")
+    print(f"  均值回归参数扫描 — {symbol}")
     print(f"  {'─'*60}")
-    print(f"  {'std':>5} {'vol_t':>6} {'ma':>5} {'sl_atr':>7} | {'ret':>7} {'dd':>6} {'sharpe':>7} {'trades':>7} {'wr':>6}")
+    print(f"  {'std':>5} {'rsi_ob':>6} {'sl_atr':>7} | {'ret':>7} {'dd':>6} {'sharpe':>7} {'trades':>7} {'wr':>6}")
     print(f"  {'─'*65}")
 
     best_sharpe = -999
     best_params = {}
 
-    for std_dev in [2.0, 2.5, 3.0]:
-        for vol_threshold in [1.5, 2.0, 2.5]:
-            for trend_ma in [50, 100]:
-                for sl_atr in [2.0, 3.0, 4.0]:
-                    cfg = {
-                        "bollinger": {"period": 20, "std_dev": std_dev},
-                        "volume": {"enabled": True, "period": 20, "threshold": vol_threshold},
-                        "trend_filter": {"enabled": True, "ma_period": trend_ma},
-                        "exit": {"atr_period": 14, "stop_loss_atr": sl_atr,
-                                 "trailing_stop_atr": sl_atr * 0.7,
-                                 "max_holding_bars": 96, "take_profit_atr": sl_atr * 2},
-                    }
+    for std_dev in [1.5, 2.0, 2.5]:
+        for rsi_threshold in [65, 70]:
+            for sl_atr in [1.5, 2.0]:
+                cfg = {
+                    "bollinger": {"period": 20, "std_dev": std_dev},
+                    "rsi": {"period": 14, "overbought": rsi_threshold,
+                            "oversold": 100 - rsi_threshold},
+                    "adx_filter": {"period": 14, "max_adx": 30},
+                    "exit": {"atr_period": 14, "stop_loss_atr": sl_atr,
+                             "max_holding_bars": 36},
+                }
 
-                    strategy = BollingerTrendStrategy("bb", cfg)
-                    strategy.add_symbol(symbol)
-                    strategy.add_timeframe("15m")
+                strategy = BollingerMeanReversionStrategy("mr", cfg)
+                strategy.add_symbol(symbol)
+                strategy.add_timeframe("15m")
 
-                    rm = RiskManager(config)
-                    engine = BacktestEngine(initial_capital=5000, commission_rate=0.0004, slippage_pct=0.0005)
-                    r = await engine.run(strategy, bars, rm)
+                rm = RiskManager(config)
+                engine = BacktestEngine(initial_capital=5000, commission_rate=0.0004, slippage_pct=0.0005)
+                r = await engine.run(strategy, bars, rm)
 
-                    marker = ""
-                    if r.sharpe_ratio > best_sharpe:
-                        best_sharpe = r.sharpe_ratio
-                        best_params = {"std": std_dev, "vol_t": vol_threshold,
-                                       "ma": trend_ma, "sl_atr": sl_atr, "result": r}
-                        marker = " ★"
+                marker = ""
+                if r.sharpe_ratio > best_sharpe:
+                    best_sharpe = r.sharpe_ratio
+                    best_params = {"std": std_dev, "rsi_ob": rsi_threshold,
+                                   "sl_atr": sl_atr, "result": r}
+                    marker = " ★"
 
-                    if r.total_trades > 5:
-                        print(f"  {std_dev:>5.1f} {vol_threshold:>6.1f} {trend_ma:>5d} {sl_atr:>7.1f} | "
-                              f"{r.total_return:>+6.1%} {r.max_drawdown:>5.1%} "
-                              f"{r.sharpe_ratio:>7.2f} {r.total_trades:>7d} "
-                              f"{r.win_rate:>5.1%}{marker}")
+                if r.total_trades > 0:
+                    print(f"  {std_dev:>5.1f} {rsi_threshold:>6d} {sl_atr:>7.1f} | "
+                          f"{r.total_return:>+6.1%} {r.max_drawdown:>5.1%} "
+                          f"{r.sharpe_ratio:>7.2f} {r.total_trades:>7d} "
+                          f"{r.win_rate:>5.1%}{marker}")
 
     if best_params:
         r = best_params["result"]
-        print(f"\n  ★ 最优参数: std={best_params['std']}, vol_t={best_params['vol_t']}, "
-              f"ma={best_params['ma']}, sl_atr={best_params['sl_atr']}")
+        print(f"\n  ★ 最优参数: std={best_params['std']}, rsi_ob={best_params['rsi_ob']}, "
+              f"sl_atr={best_params['sl_atr']}")
         print(f"    收益={r.total_return:+.1%}, 回撤={r.max_drawdown:.1%}, "
-              f"夏普={r.sharpe_ratio:.2f}, 交易={r.total_trades}")
+              f"夏普={r.sharpe_ratio:.2f}, 交易={r.total_trades}, 胜率={r.win_rate:.1%}")
 
     return best_params
 
@@ -230,7 +230,7 @@ async def main():
     exchange = "binanceusdm"
 
     print("=" * 70)
-    print("  优化版回测 — Regime 检测 + 参数优化 + 资金费率")
+    print("  优化版回测 — Regime 检测 + 均值回归 + 资金费率")
     print("=" * 70)
 
     # ═══════════════════════════════════════════
@@ -252,16 +252,16 @@ async def main():
               f"ADX={info['adx']:>5.1f}  vol_pct={info['vol_percentile']:>5.1f}%")
 
     # ═══════════════════════════════════════════
-    # 2. 布林带参数扫描 (15m)
+    # 2. 均值回归参数扫描 (15m)
     # ═══════════════════════════════════════════
     print(f"\n{'='*70}")
-    print("  2. 布林带参数扫描 (15m)")
+    print("  2. 布林带均值回归参数扫描 (15m)")
     print(f"{'='*70}")
 
     for sym in symbols_15m:
         bars = loader.load_bars(sym, exchange, "15m")
         if bars:
-            await param_sweep_bollinger(bars, sym, config)
+            await param_sweep_mean_reversion(bars, sym, config)
 
     # ═══════════════════════════════════════════
     # 3. TSMOM 优化版 (日线, Regime-aware)
@@ -300,40 +300,43 @@ async def main():
         print(f"  {'AVERAGE':<20} return={avg_r:+7.1%}  sharpe={avg_s:6.2f}")
 
     # ═══════════════════════════════════════════
-    # 4. 布林带优化版 (15m, Regime-aware)
+    # 4. 均值回归优化版 (15m, Regime-aware)
     # ═══════════════════════════════════════════
     print(f"\n{'='*70}")
-    print("  4. 布林带优化版 (15m, Regime-aware)")
+    print("  4. 布林带均值回归 (15m, Regime-aware)")
     print(f"{'='*70}")
 
-    bb_opt_cfg = yaml.safe_load(open("config/strategies/bollinger_trend_optimized.yaml"))
-    bb_results = []
+    mr_cfg = yaml.safe_load(open("config/strategies/bollinger_mean_reversion.yaml"))
+    mr_results = []
 
     for sym in symbols_15m:
         bars = loader.load_bars(sym, exchange, "15m")
         if not bars:
             continue
 
-        inner = BollingerTrendStrategy("bollinger_trend", bb_opt_cfg)
+        inner = BollingerMeanReversionStrategy("mean_reversion", mr_cfg)
         inner.add_symbol(sym)
         inner.add_timeframe("15m")
 
-        strategy = RegimeAwareStrategy(inner, "bollinger_trend")
+        strategy = RegimeAwareStrategy(inner, "mean_reversion")
         strategy.add_symbol(sym)
         strategy.add_timeframe("15m")
 
         rm = RiskManager(config)
         engine = BacktestEngine(initial_capital=5000, commission_rate=0.0004, slippage_pct=0.0005)
         r = await engine.run(strategy, bars, rm)
-        bb_results.append(r)
+        mr_results.append(r)
 
         print(f"  {sym:<20} return={r.total_return:+7.1%}  dd={r.max_drawdown:6.1%}  "
-              f"sharpe={r.sharpe_ratio:6.2f}  trades={r.total_trades:3d}")
+              f"sharpe={r.sharpe_ratio:6.2f}  trades={r.total_trades:3d}  "
+              f"win_rate={r.win_rate:5.1%}")
 
-    if bb_results:
-        avg_r = np.mean([r.total_return for r in bb_results])
-        avg_s = np.mean([r.sharpe_ratio for r in bb_results])
-        print(f"  {'AVERAGE':<20} return={avg_r:+7.1%}  sharpe={avg_s:6.2f}")
+    if mr_results:
+        avg_r = np.mean([r.total_return for r in mr_results])
+        avg_s = np.mean([r.sharpe_ratio for r in mr_results])
+        avg_w = np.mean([r.win_rate for r in mr_results])
+        print(f"  {'AVERAGE':<20} return={avg_r:+7.1%}  sharpe={avg_s:6.2f}  "
+              f"win_rate={avg_w:5.1%}")
 
     # ═══════════════════════════════════════════
     # 5. 资金费率策略 (1h)
@@ -383,12 +386,12 @@ async def main():
     # 组合汇总
     # ═══════════════════════════════════════════
     print(f"\n{'='*70}")
-    print("  组合汇总（优化版 vs 原版对比）")
+    print("  组合汇总")
     print(f"{'='*70}")
 
     all_results = {
         "TSMOM (regime-aware)": tsmom_results,
-        "Bollinger 15m (regime+opt)": bb_results,
+        "均值回归 15m (regime)": mr_results,
         "Funding Rate": fr_results,
     }
 
