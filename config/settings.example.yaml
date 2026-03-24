@@ -23,51 +23,106 @@ exchanges:
     passphrase: "YOUR_PASSPHRASE"
     testnet: true
 
-# 交易标的
+# ============================================================
+# 交易标的 — 多策略多品种配置
+# ============================================================
 symbols:
+  # ─── P0: 布林带趋势突破 (15m) ───
   - symbol: "BTC/USDT:USDT"
     exchange: "binance_futures"
     strategy: "bollinger_trend"
-    timeframe: "15m"              # 主周期
-    higher_timeframe: "4h"        # 大周期（趋势过滤）
+    timeframe: "15m"
+    higher_timeframe: "4h"
   - symbol: "ETH/USDT:USDT"
     exchange: "binance_futures"
     strategy: "bollinger_trend"
     timeframe: "15m"
     higher_timeframe: "4h"
 
-# 全局风控参数
+  # ─── P0: 多尺度趋势跟踪 TSMOM (1d) ───
+  - symbol: "BTC/USDT:USDT"
+    exchange: "binance_futures"
+    strategy: "tsmom"
+    timeframe: "1d"
+  - symbol: "ETH/USDT:USDT"
+    exchange: "binance_futures"
+    strategy: "tsmom"
+    timeframe: "1d"
+  - symbol: "SOL/USDT:USDT"
+    exchange: "binance_futures"
+    strategy: "tsmom"
+    timeframe: "1d"
+
+  # ─── P0: 资金费率反向策略 (1h) ───
+  - symbol: "BTC/USDT:USDT"
+    exchange: "binance_futures"
+    strategy: "funding_rate"
+    timeframe: "1h"
+  - symbol: "ETH/USDT:USDT"
+    exchange: "binance_futures"
+    strategy: "funding_rate"
+    timeframe: "1h"
+
+  # ─── P1: 跨币种动量轮动 (1d) ───
+  - symbol: "BTC/USDT:USDT"
+    exchange: "binance_futures"
+    strategy: "cross_momentum"
+    timeframe: "1d"
+  - symbol: "ETH/USDT:USDT"
+    exchange: "binance_futures"
+    strategy: "cross_momentum"
+    timeframe: "1d"
+  - symbol: "SOL/USDT:USDT"
+    exchange: "binance_futures"
+    strategy: "cross_momentum"
+    timeframe: "1d"
+  - symbol: "DOGE/USDT:USDT"
+    exchange: "binance_futures"
+    strategy: "cross_momentum"
+    timeframe: "1d"
+  - symbol: "LINK/USDT:USDT"
+    exchange: "binance_futures"
+    strategy: "cross_momentum"
+    timeframe: "1d"
+  - symbol: "AVAX/USDT:USDT"
+    exchange: "binance_futures"
+    strategy: "cross_momentum"
+    timeframe: "1d"
+
+# ============================================================
+# 全局风控参数（激进模式）
+# ============================================================
 risk:
   # 账户级别
-  max_total_position_pct: 0.5       # 最大总仓位占总资金比例
-  max_daily_loss_pct: 0.05          # 单日最大亏损 (5%)
-  max_drawdown_pct: 0.20            # 最大回撤停机阈值 (20%)
-  consecutive_loss_limit: 5         # 连续止损次数限制
-  cooldown_hours: 4                 # 触发熔断后冷却时间 (小时)
+  max_total_position_pct: 0.60        # 最大总仓位占总资金比例 (60%)
+  max_daily_loss_pct: 0.08            # 单日最大亏损 (8%)
+  max_drawdown_pct: 0.35              # 最大回撤停机阈值 (35%)
+  consecutive_loss_limit: 5           # 连续止损次数限制
+  cooldown_hours: 4                   # 触发熔断后冷却时间 (小时)
 
   # 单笔交易
-  max_risk_per_trade_pct: 0.02     # 单笔最大风险 (2%)
-  max_leverage: 3.0                 # 最大杠杆倍数
-  min_leverage: 0.1                 # 最小杠杆倍数
+  max_risk_per_trade_pct: 0.03        # 单笔最大风险 (3%)
+  max_leverage: 5.0                   # 最大杠杆倍数
+  min_leverage: 0.1                   # 最小杠杆倍数
 
-  # 波动率仓位管理
+  # 波动率仓位管理 (Carver 框架)
   volatility:
-    target_annual_vol: 0.40         # 目标年化波动率 (40%)
-    ewma_lambda_fast: 0.94          # 快速EWMA衰减因子
-    ewma_lambda_slow: 0.97          # 慢速EWMA衰减因子
-    rebalance_interval: "4h"        # 重平衡频率
-    emergency_vol_multiplier: 3.0   # 紧急减仓波动率倍数阈值
+    target_annual_vol: 0.80           # 目标年化波动率 (80%)
+    ewma_lambda_fast: 0.94            # 快速EWMA衰减因子
+    ewma_lambda_slow: 0.97            # 慢速EWMA衰减因子
+    rebalance_interval: "4h"          # 重平衡频率
+    emergency_vol_multiplier: 3.0     # 紧急减仓波动率倍数阈值
 
   # 熔断机制
   circuit_breaker:
     enabled: true
-    atr_spike_threshold: 3.0        # ATR 突增倍数（15分钟内）
-    force_close_on_spike: true      # ATR 飙升时强制平仓
+    atr_spike_threshold: 3.0          # ATR 突增倍数
+    force_close_on_spike: true        # ATR 飙升时强制平仓
 
 # 数据库配置
 database:
   url: "sqlite+aiosqlite:///data/db/tradings.db"
-  echo: false                       # 是否打印 SQL
+  echo: false
 
 # 日志配置
 logging:
@@ -91,8 +146,8 @@ notification:
 # 回测配置
 backtest:
   start_date: "2024-01-01"
-  end_date: "2024-12-31"
-  initial_capital: 10000.0          # 初始资金 (USDT)
-  commission_rate: 0.0004           # 手续费率 (Taker: 0.04%)
-  slippage_pct: 0.0005              # 滑点 (0.05%)
+  end_date: "2025-12-31"
+  initial_capital: 5000.0             # 初始资金 (USDT)
+  commission_rate: 0.0004             # 手续费率 (Taker: 0.04%)
+  slippage_pct: 0.0005                # 滑点 (0.05%)
   data_dir: "data/klines"
