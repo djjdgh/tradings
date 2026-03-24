@@ -129,7 +129,7 @@ class RegimeDetector:
                 "mean_reversion": 0.2,
             },
             MarketRegime.RANGING: {
-                "tsmom": 0.2,
+                "tsmom": 0.5,            # 0.2→0.5: 震荡市仍允许 TSMOM（减仓但不禁止）
                 "bollinger_trend": 0.3,
                 "funding_rate": 1.0,
                 "cross_momentum": 0.5,
