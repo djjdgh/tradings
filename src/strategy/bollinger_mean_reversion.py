@@ -47,7 +47,8 @@ class BollingerMeanReversionStrategy(BaseStrategy):
 
         exit_cfg = config.get("exit", {})
         self._atr_period = exit_cfg.get("atr_period", 14)
-        self._sl_atr = exit_cfg.get("stop_loss_atr", 2.0)
+        self._sl_atr = exit_cfg.get("stop_loss_atr", 3.0)
+        self._tp_ratio = exit_cfg.get("take_profit_ratio", 0.6)  # TP = 回归中轨距离的 60%
         self._max_holding = exit_cfg.get("max_holding_bars", 36)
 
     @property
@@ -117,13 +118,14 @@ class BollingerMeanReversionStrategy(BaseStrategy):
         if curr_close > curr_upper and curr_rsi > self._rsi_overbought:
             signal_action = SignalAction.OPEN_SHORT
             stop_loss = curr_close + self._sl_atr * curr_atr
-            take_profit = curr_ma  # TP = 中轨
+            # TP = 当前价向中轨回归 tp_ratio 的距离（比中轨更近，更容易触及）
+            take_profit = curr_close - self._tp_ratio * (curr_close - curr_ma)
 
         # 价格 < 下轨 + RSI 超卖 → 做多（预期回归）
         elif curr_close < curr_lower and curr_rsi < self._rsi_oversold:
             signal_action = SignalAction.OPEN_LONG
             stop_loss = curr_close - self._sl_atr * curr_atr
-            take_profit = curr_ma  # TP = 中轨
+            take_profit = curr_close + self._tp_ratio * (curr_ma - curr_close)
 
         if signal_action is None:
             return None
@@ -154,6 +156,7 @@ class BollingerMeanReversionStrategy(BaseStrategy):
                 "adx": curr_adx,
                 "atr": curr_atr,
                 "type": "mean_reversion",
+                "max_holding_bars": self._max_holding,
             },
         )
 

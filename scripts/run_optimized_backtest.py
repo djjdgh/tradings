@@ -177,14 +177,15 @@ async def param_sweep_mean_reversion(bars, symbol, config):
     best_params = {}
 
     for std_dev in [1.5, 2.0, 2.5]:
-        for rsi_threshold in [65, 70]:
-            for sl_atr in [1.5, 2.0]:
+        for rsi_threshold in [60, 65, 70]:
+            for sl_atr in [2.5, 3.0, 3.5]:
                 cfg = {
                     "bollinger": {"period": 20, "std_dev": std_dev},
                     "rsi": {"period": 14, "overbought": rsi_threshold,
                             "oversold": 100 - rsi_threshold},
                     "adx_filter": {"period": 14, "max_adx": 30},
                     "exit": {"atr_period": 14, "stop_loss_atr": sl_atr,
+                             "take_profit_ratio": 0.6,
                              "max_holding_bars": 36},
                 }
 

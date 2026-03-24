@@ -202,8 +202,9 @@ class BacktestEngine:
                         "lowest": bar.low,
                         "strategy": signal.strategy,
                         "entry_fee": fee,
+                        "max_holding_bars": signal.metadata.get("max_holding_bars") if signal.metadata else None,
                     }
-                    equity -= fee
+                    # 入场费统一在 _close_position 的 total_fee 中扣除，此处不重复扣
 
             elif signal and signal.action in (SignalAction.CLOSE_LONG, SignalAction.CLOSE_SHORT):
                 if position is not None:
@@ -334,7 +335,7 @@ class BacktestEngine:
         )
 
     def _check_stops(self, position: dict, bar: Bar) -> Optional[dict]:
-        """检查止损止盈"""
+        """检查止损止盈 + 时间止损"""
         is_long = position["side"] == "long"
 
         # 固定止损
@@ -348,6 +349,11 @@ class BacktestEngine:
         if tp:
             if (is_long and bar.high >= tp) or (not is_long and bar.low <= tp):
                 return {"price": tp, "reason": "take_profit"}
+
+        # 时间止损
+        max_bars = position.get("max_holding_bars")
+        if max_bars and position["bars_held"] >= max_bars:
+            return {"price": bar.close, "reason": "time_stop"}
 
         return None
 
