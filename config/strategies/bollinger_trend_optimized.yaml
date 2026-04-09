@@ -1,0 +1,31 @@
+# ============================================================
+# 布林带趋势突破策略 — 优化参数
+# 针对 15m 周期，减少假突破
+# ============================================================
+
+name: "bollinger_trend"
+description: "布林带突破 + 强放量确认 + 趋势过滤 + 冷却期"
+
+# 布林带参数（加宽标准差，减少假突破）
+bollinger:
+  period: 20
+  std_dev: 2.5            # 2.0 → 2.5，更严格的突破判定
+
+# 成交量过滤（提高门槛）
+volume:
+  enabled: true
+  period: 20
+  threshold: 2.0          # 1.5 → 2.0，要求更强放量
+
+# 多周期趋势过滤
+trend_filter:
+  enabled: true
+  ma_period: 100          # 50 → 100，更长期趋势
+
+# 止盈止损（加宽止损，减少被扫）
+exit:
+  atr_period: 14
+  stop_loss_atr: 3.0      # 2.0 → 3.0
+  trailing_stop_atr: 2.0  # 1.5 → 2.0
+  max_holding_bars: 96    # 48 → 96 (24小时)
+  take_profit_atr: 5.0    # 4.0 → 5.0

@@ -1,0 +1,11 @@
+# TSMOM 4h 版 — 捕捉 2-16 天中短期趋势
+# 日线 EWMA spans [8,16,32,64] → 4h 等效 [12,24,48,96]（×6 bars/day ÷ 4）
+# 更频繁的交易信号，弥补日线 TSMOM 信号过少的问题
+
+name: "tsmom_4h"
+ewma_spans: [12, 24, 48, 96]
+signal_weights: [0.25, 0.25, 0.25, 0.25]
+signal_threshold: 0.15        # 比日线更宽松（0.25 → 0.15）
+atr_period: 14
+stop_loss_atr: 3.0
+take_profit_atr: 6.0

@@ -1,0 +1,21 @@
+# 布林带均值回归策略 — 震荡市专用
+# 价格触及布林带极端时反向开仓，预期回归中轨
+
+bollinger:
+  period: 20
+  std_dev: 2.0
+
+rsi:
+  period: 14
+  overbought: 65        # 放宽 RSI 条件（原 70 太严格）
+  oversold: 35
+
+adx_filter:
+  period: 14
+  max_adx: 30            # ADX > 30 时不交易（强趋势不做均值回归）
+
+exit:
+  atr_period: 14
+  stop_loss_atr: 3.0     # 较宽止损（原 2.0 太紧，被震出）
+  take_profit_ratio: 0.6  # TP = 回归中轨距离的 60%（比中轨更近，更易触及）
+  max_holding_bars: 36    # 时间止损，避免无限持有

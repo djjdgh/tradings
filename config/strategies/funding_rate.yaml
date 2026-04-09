@@ -1,0 +1,23 @@
+# ============================================================
+# 资金费率反向策略参数
+# ============================================================
+
+name: "funding_rate"
+description: "利用极端资金费率作为情绪反转信号"
+
+# 开仓阈值
+extreme_high_threshold: 0.0005    # 0.05% per 8h → 做空 (≈55% APR)
+extreme_low_threshold: -0.0003    # -0.03% per 8h → 做多
+
+# 平仓阈值（费率回归正常）
+exit_threshold: 0.0001            # 0.01% per 8h
+
+# 仓位限制
+max_position_pct: 0.25            # 最大仓位占资金 25%
+
+# 最大持有周期数（每 8h 为一个周期）
+max_holding_periods: 6            # 最多 48h
+
+# ATR 参数
+atr_period: 14
+stop_loss_atr: 2.5
